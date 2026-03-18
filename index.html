@@ -2,12 +2,12 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Reading Zone</title>
+<title>My Book App</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
 <style>
-body{font-family:Arial;margin:0;background:#f5f5f5;}
+body{margin:0;font-family:Arial;background:#f5f5f5;}
 header{background:#4CAF50;color:#fff;padding:10px;text-align:center;}
 
 #bookList{display:flex;flex-wrap:wrap;justify-content:center;}
@@ -15,13 +15,14 @@ header{background:#4CAF50;color:#fff;padding:10px;text-align:center;}
 .book{
 width:140px;
 margin:10px;
-background:#fff;
 padding:10px;
+background:#fff;
 border-radius:10px;
 text-align:center;
+cursor:pointer;
 }
 
-.book img{width:100%;}
+.book img{width:100%;border-radius:8px;}
 
 #reader{display:none;}
 #content{height:80vh;overflow:auto;}
@@ -35,16 +36,17 @@ margin-bottom:10px;
 button{
 padding:8px;
 margin:5px;
-border:none;
 background:#4CAF50;
 color:white;
+border:none;
 border-radius:5px;
 }
 
 .dark{background:#121212;color:white;}
 .dark .book{background:#1e1e1e;}
 
-#login{text-align:center;margin-top:50px;}
+#login{text-align:center;margin-top:60px;}
+#uploadBox{text-align:center;padding:10px;background:#fff;margin:10px;border-radius:10px;}
 </style>
 </head>
 
@@ -62,58 +64,54 @@ border-radius:5px;
 <div id="app" style="display:none;">
 
 <header>
-📚 My Reading Zone  
+📚 My Library
 <button onclick="toggleDark()">🌙</button>
 </header>
 
-<input id="search" placeholder="Search books..." onkeyup="searchBooks()">
+<input id="search" placeholder="Search..." onkeyup="searchBooks()">
+
+<!-- USER UPLOAD -->
+<div id="uploadBox">
+<h3>Upload Your Book</h3>
+<input type="text" id="titleInput" placeholder="Book Title"><br>
+<input type="file" id="pdfInput" accept="application/pdf"><br>
+<input type="file" id="imgInput" accept="image/*"><br>
+<button onclick="uploadBook()">Upload Book</button>
+</div>
 
 <div id="bookList"></div>
 
 <!-- READER -->
 <div id="reader">
-<button onclick="back()">⬅ Back</button>
-<button onclick="savePage()">📌 Pin Page</button>
-<h3 id="title"></h3>
+<button onclick="goBack()">⬅ Back</button>
+<button onclick="savePage()">📌 Pin</button>
+<h3 id="bookTitle"></h3>
 <div id="content"></div>
-</div>
-
-<!-- ADMIN -->
-<div id="admin" style="display:none;">
-<h3>Add Book</h3>
-<input id="t" placeholder="Title"><br>
-<input type="file" id="pdf"><br>
-<input type="file" id="img"><br>
-<button onclick="add()">Add</button>
 </div>
 
 </div>
 
 <script>
 
-// ✅ LOGIN FIXED
+// LOGIN
 function login(){
-  let u = document.getElementById("user").value;
-  let p = document.getElementById("pass").value;
+let u=document.getElementById("user").value;
+let p=document.getElementById("pass").value;
 
-  if(u === "admin" && p === "1234"){
-    localStorage.setItem("login","true");
-    start();
-  } else {
-    alert("Wrong username or password");
-  }
+if(u==="admin" && p==="1234"){
+localStorage.setItem("login","true");
+start();
+}else{
+alert("Wrong Login");
+}
 }
 
 function start(){
-  document.getElementById("login").style.display="none";
-  document.getElementById("app").style.display="block";
-  document.getElementById("admin").style.display="block";
+document.getElementById("login").style.display="none";
+document.getElementById("app").style.display="block";
 }
 
-// AUTO LOGIN
-if(localStorage.getItem("login") === "true"){
-  start();
-}
+if(localStorage.getItem("login")==="true") start();
 
 // 📚 YOUR BOOKS ONLY
 let books=[
@@ -123,120 +121,123 @@ let books=[
 ];
 
 // LOAD USER BOOKS
-let saved=JSON.parse(localStorage.getItem("userBooks")||"[]");
-books=[...books,...saved];
+let userBooks=JSON.parse(localStorage.getItem("userBooks")||"[]");
+books=[...books,...userBooks];
 
 // SHOW BOOKS
-function show(list=books){
-  let container=document.getElementById("bookList");
-  container.innerHTML="";
+function showBooks(list=books){
+let box=document.getElementById("bookList");
+box.innerHTML="";
 
-  list.forEach((b,i)=>{
-    container.innerHTML+=`
-    <div class="book" onclick="openBook(${i})">
-      <img src="${b.cover}">
-      <p>${b.title}</p>
-    </div>`;
-  });
+list.forEach((b,i)=>{
+box.innerHTML+=`
+<div class="book" onclick="openBook(${i})">
+<img src="${b.cover}">
+<p>${b.title}</p>
+</div>`;
+});
 }
-show();
+showBooks();
 
-// 📖 OPEN BOOK
+// OPEN BOOK
 function openBook(i){
-  let b=books[i];
-  document.getElementById("title").innerText=b.title;
-  let content=document.getElementById("content");
-  content.innerHTML="Loading...";
+let b=books[i];
+document.getElementById("bookTitle").innerText=b.title;
 
-  let task;
+let content=document.getElementById("content");
+content.innerHTML="Loading...";
 
-  if(b.pdf.startsWith("data:")){
-    task = pdfjsLib.getDocument({data: atob(b.pdf.split(',')[1])});
-  }else{
-    task = pdfjsLib.getDocument(b.pdf);
-  }
+pdfjsLib.getDocument(b.pdf).promise.then(pdf=>{
+content.innerHTML="";
 
-  task.promise.then(pdf=>{
-    content.innerHTML="";
+for(let p=1;p<=pdf.numPages;p++){
+pdf.getPage(p).then(page=>{
+let viewport=page.getViewport({scale:1.4});
+let canvas=document.createElement("canvas");
+let ctx=canvas.getContext("2d");
 
-    for(let p=1;p<=pdf.numPages;p++){
-      pdf.getPage(p).then(page=>{
-        let viewport=page.getViewport({scale:1.3});
-        let canvas=document.createElement("canvas");
-        let ctx=canvas.getContext("2d");
+canvas.height=viewport.height;
+canvas.width=viewport.width;
 
-        canvas.height=viewport.height;
-        canvas.width=viewport.width;
+content.appendChild(canvas);
 
-        content.appendChild(canvas);
+page.render({canvasContext:ctx,viewport});
+});
+}
 
-        page.render({canvasContext:ctx,viewport});
-      });
-    }
+// restore scroll
+setTimeout(()=>{
+let pos=localStorage.getItem("page_"+i);
+if(pos) content.scrollTop=pos;
+},500);
 
-    // 📌 Restore page
-    setTimeout(()=>{
-      let pos=localStorage.getItem("page_"+i);
-      if(pos) content.scrollTop=pos;
-    },500);
+});
 
-  });
-
-  document.getElementById("reader").style.display="block";
-  document.getElementById("bookList").style.display="none";
+document.getElementById("reader").style.display="block";
+document.getElementById("bookList").style.display="none";
 }
 
 // BACK
-function back(){
-  document.getElementById("reader").style.display="none";
-  document.getElementById("bookList").style.display="flex";
+function goBack(){
+document.getElementById("reader").style.display="none";
+document.getElementById("bookList").style.display="flex";
 }
 
-// 📌 SAVE PAGE
+// 📌 PIN PAGE
 function savePage(){
-  let content=document.getElementById("content");
-  let index=books.findIndex(b=>b.title===document.getElementById("title").innerText);
-  localStorage.setItem("page_"+index,content.scrollTop);
-  alert("Page pinned!");
+let pos=document.getElementById("content").scrollTop;
+let title=document.getElementById("bookTitle").innerText;
+
+let index=books.findIndex(b=>b.title===title);
+localStorage.setItem("page_"+index,pos);
+
+alert("Page Saved!");
 }
 
 // SEARCH
 function searchBooks(){
-  let v=document.getElementById("search").value.toLowerCase();
-  show(books.filter(b=>b.title.toLowerCase().includes(v)));
+let val=document.getElementById("search").value.toLowerCase();
+showBooks(books.filter(b=>b.title.toLowerCase().includes(val)));
 }
 
 // DARK MODE
 function toggleDark(){
-  document.body.classList.toggle("dark");
+document.body.classList.toggle("dark");
 }
 
-// ➕ ADD BOOK
-function add(){
-  let r1=new FileReader();
-  let r2=new FileReader();
+// USER UPLOAD
+function uploadBook(){
 
-  r1.onload=()=>{
-    r2.onload=()=>{
+let title=document.getElementById("titleInput").value;
+let pdfFile=document.getElementById("pdfInput").files[0];
+let imgFile=document.getElementById("imgInput").files[0];
 
-      let newBook={
-        title:document.getElementById("t").value,
-        pdf:r1.result,
-        cover:r2.result
-      };
+let r1=new FileReader();
+let r2=new FileReader();
 
-      let arr=JSON.parse(localStorage.getItem("userBooks")||"[]");
-      arr.push(newBook);
-      localStorage.setItem("userBooks",JSON.stringify(arr));
+r1.onload=function(){
+r2.onload=function(){
 
-      books.push(newBook);
-      show();
+let newBook={
+title:title,
+pdf:r1.result,
+cover:r2.result
+};
 
-      alert("Book Added!");
-    };
-    r2.readAsDataURL(document.getElementById("img").files[0]);
-  };
-  r1.readAsDataURL(document.getElementById("pdf").files[0]);
+let arr=JSON.parse(localStorage.getItem("userBooks")||"[]");
+arr.push(newBook);
+localStorage.setItem("userBooks",JSON.stringify(arr));
+
+books.push(newBook);
+showBooks();
+
+alert("Book Uploaded!");
+};
+r2.readAsDataURL(imgFile);
+};
+
+r1.readAsDataURL(pdfFile);
+
 }
 
 </script>
