@@ -1,42 +1,60 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Reading Zone</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
 <style>
-body{margin:0;font-family:Arial;background:#f5f5f5;}
-header{background:#4CAF50;color:white;padding:10px;text-align:center;}
-
-input,textarea{padding:8px;margin:5px;width:90%;}
-button{padding:8px;margin:5px;border:none;background:#4CAF50;color:white;border-radius:5px;}
+body{font-family:Arial;margin:0;background:#f5f5f5;}
+header{background:#4CAF50;color:#fff;padding:10px;text-align:center;}
 
 #bookList{display:flex;flex-wrap:wrap;justify-content:center;}
-.book{width:140px;margin:10px;padding:10px;background:white;border-radius:10px;text-align:center;}
+
+.book{
+width:140px;
+margin:10px;
+background:#fff;
+padding:10px;
+border-radius:10px;
+text-align:center;
+}
+
 .book img{width:100%;}
 
 #reader{display:none;}
 #content{height:80vh;overflow:auto;}
 
-canvas{width:100%!important;height:auto!important;}
+canvas{
+width:100%!important;
+height:auto!important;
+margin-bottom:10px;
+}
+
+button{
+padding:8px;
+margin:5px;
+border:none;
+background:#4CAF50;
+color:white;
+border-radius:5px;
+}
 
 .dark{background:#121212;color:white;}
 .dark .book{background:#1e1e1e;}
 
-#loginPage{text-align:center;margin-top:50px;}
+#login{text-align:center;margin-top:50px;}
 </style>
 </head>
 
 <body>
 
 <!-- LOGIN -->
-<div id="loginPage">
+<div id="login">
 <h2>Login</h2>
-<input id="username" placeholder="Username"><br>
-<input id="password" type="password" placeholder="Password"><br>
+<input id="user" placeholder="Username"><br>
+<input id="pass" type="password"><br>
 <button onclick="login()">Login</button>
 </div>
 
@@ -44,28 +62,29 @@ canvas{width:100%!important;height:auto!important;}
 <div id="app" style="display:none;">
 
 <header>
-<h2>📚 My Reading Zone</h2>
+📚 My Reading Zone  
 <button onclick="toggleDark()">🌙</button>
 </header>
 
-<input id="search" placeholder="Search..." onkeyup="searchBooks()">
+<input id="search" placeholder="Search" onkeyup="searchBooks()">
 
 <div id="bookList"></div>
 
 <!-- READER -->
 <div id="reader">
-<button onclick="goBack()">⬅ Back</button>
+<button onclick="back()">⬅ Back</button>
+<button onclick="savePage()">📌 Pin Page</button>
 <h3 id="title"></h3>
 <div id="content"></div>
 </div>
 
-<!-- ADMIN PANEL -->
-<div id="adminPanel" style="display:none;">
+<!-- ADMIN -->
+<div id="admin" style="display:none;">
 <h3>Add Book</h3>
-<input id="bookTitle" placeholder="Title"><br>
-<input type="file" id="pdfFile"><br>
-<input type="file" id="imgFile"><br>
-<button onclick="addBook()">Add</button>
+<input id="t" placeholder="Title"><br>
+<input type="file" id="pdf"><br>
+<input type="file" id="img"><br>
+<button onclick="add()">Add</button>
 </div>
 
 </div>
@@ -74,49 +93,33 @@ canvas{width:100%!important;height:auto!important;}
 
 // LOGIN
 function login(){
-if(username.value==="admin" && password.value==="1234"){
-localStorage.setItem("login","true");
-startApp();
+if(user.value==="admin" && pass.value==="1234"){
+localStorage.setItem("login",1);
+start();
 }else alert("Wrong login");
 }
 
-function startApp(){
-loginPage.style.display="none";
+function start(){
+login.style.display="none";
 app.style.display="block";
-adminPanel.style.display="block";
+admin.style.display="block";
 }
 
-// AUTO LOGIN
-if(localStorage.getItem("login")==="true"){startApp();}
+if(localStorage.getItem("login")) start();
 
-// 🔥 DEFAULT BOOKS (GitHub वाली)
+// 📚 ONLY YOUR BOOKS
 let books=[
-{
-title:"October Junction",
-cover:"Octoberjunction.jpg",
-pdf:"OctoberJunction.pdf"
-},
-{
-title:"Deewar Mein Khidki",
-cover:"deewarmeekkhidki.jpg",
-pdf:"deewarmeekkhidki.pdf"
-},
-{
-title:"Godaan",
-cover:"godaan.jpg",
-pdf:"godaan.pdf"
-}
+{title:"October Junction",cover:"Octoberjunction.jpg",pdf:"OctoberJunction.pdf"},
+{title:"Deewar Mein Khidki",cover:"deewarmeekkhidki.jpg",pdf:"deewarmeekkhidki.pdf"},
+{title:"Godaan",cover:"godaan.jpg",pdf:"godaan.pdf"}
 ];
 
 // LOAD USER BOOKS
-let saved=localStorage.getItem("books");
-if(saved){
-let userBooks=JSON.parse(saved);
-books=[...books,...userBooks];
-}
+let saved=JSON.parse(localStorage.getItem("userBooks")||"[]");
+books=[...books,...saved];
 
 // SHOW BOOKS
-function displayBooks(list=books){
+function show(list=books){
 bookList.innerHTML="";
 list.forEach((b,i)=>{
 bookList.innerHTML+=`
@@ -126,21 +129,28 @@ bookList.innerHTML+=`
 </div>`;
 });
 }
-displayBooks();
+show();
 
-// OPEN PDF
+// OPEN BOOK (MOBILE FRIENDLY)
 function openBook(i){
 let b=books[i];
 title.innerText=b.title;
 content.innerHTML="Loading...";
 
-let scale = window.innerWidth<600?1.5:1.2;
+let loadingTask;
 
-pdfjsLib.getDocument(b.pdf).promise.then(pdf=>{
+if(b.pdf.startsWith("data:")){
+loadingTask=pdfjsLib.getDocument({data:atob(b.pdf.split(',')[1])});
+}else{
+loadingTask=pdfjsLib.getDocument(b.pdf);
+}
+
+loadingTask.promise.then(pdf=>{
 content.innerHTML="";
+
 for(let p=1;p<=pdf.numPages;p++){
 pdf.getPage(p).then(page=>{
-let viewport=page.getViewport({scale:scale});
+let viewport=page.getViewport({scale:1.3});
 let canvas=document.createElement("canvas");
 let ctx=canvas.getContext("2d");
 
@@ -149,9 +159,16 @@ canvas.width=viewport.width;
 
 content.appendChild(canvas);
 
-page.render({canvasContext:ctx,viewport:viewport});
+page.render({canvasContext:ctx,viewport});
 });
 }
+
+// 📌 Restore pinned scroll
+setTimeout(()=>{
+let pos=localStorage.getItem("page_"+i);
+if(pos) content.scrollTop=pos;
+},500);
+
 });
 
 reader.style.display="block";
@@ -159,52 +176,57 @@ bookList.style.display="none";
 }
 
 // BACK
-function goBack(){
+function back(){
 reader.style.display="none";
 bookList.style.display="flex";
+}
+
+// 📌 SAVE PAGE
+function savePage(){
+let index=books.findIndex(b=>b.title===title.innerText);
+localStorage.setItem("page_"+index,content.scrollTop);
+alert("Page pinned!");
 }
 
 // SEARCH
 function searchBooks(){
 let v=search.value.toLowerCase();
-displayBooks(books.filter(b=>b.title.toLowerCase().includes(v)));
+show(books.filter(b=>b.title.toLowerCase().includes(v)));
 }
 
-// DARK
+// DARK MODE
 function toggleDark(){
 document.body.classList.toggle("dark");
 }
 
-// ADD BOOK (USER UPLOAD)
-function addBook(){
-let t=bookTitle.value;
-let pdf=pdfFile.files[0];
-let img=imgFile.files[0];
-
+// ADD BOOK
+function add(){
 let r1=new FileReader();
 let r2=new FileReader();
 
-r1.onload=function(){
-r2.onload=function(){
+r1.onload=()=>{
+r2.onload=()=>{
 
 let newBook={
-title:t,
+title:t.value,
 pdf:r1.result,
 cover:r2.result
 };
 
-let old=JSON.parse(localStorage.getItem("books")||"[]");
-old.push(newBook);
-localStorage.setItem("books",JSON.stringify(old));
+let arr=JSON.parse(localStorage.getItem("userBooks")||"[]");
+arr.push(newBook);
+localStorage.setItem("userBooks",JSON.stringify(arr));
 
 books.push(newBook);
-displayBooks();
+show();
 
 alert("Book Added!");
 };
-r2.readAsDataURL(img);
+
+r2.readAsDataURL(img.files[0]);
 };
-r1.readAsDataURL(pdf);
+
+r1.readAsDataURL(pdf.files[0]);
 }
 
 </script>
