@@ -51,12 +51,17 @@ border-radius:5px;
 <body>
 
 <!-- LOGIN -->
-<div id="login">
-<h2>Login</h2>
-<input id="user" placeholder="Username"><br>
-<input id="pass" type="password"><br>
-<button onclick="login()">Login</button>
-</div>
+function login(){
+  let u = document.getElementById("user").value;
+  let p = document.getElementById("pass").value;
+
+  if(u === "admin" && p === "1234"){
+    localStorage.setItem("login","true");
+    start();
+  } else {
+    alert("Wrong username or password");
+  }
+}
 
 <!-- APP -->
 <div id="app" style="display:none;">
