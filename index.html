@@ -13,7 +13,6 @@ body{
   margin:0;
   font-family: Arial;
   background:#f5f5f5;
-  color:#333;
 }
 
 header{
@@ -23,14 +22,19 @@ header{
   text-align:center;
 }
 
-header p{
-  font-size:12px;
+input,textarea{
+  padding:8px;
+  margin:5px;
+  width:90%;
 }
 
-input{
+button{
   padding:8px;
-  margin:10px;
-  width:90%;
+  margin:5px;
+  border:none;
+  background:#4CAF50;
+  color:white;
+  border-radius:5px;
 }
 
 #bookList{
@@ -46,42 +50,28 @@ input{
   background:white;
   border-radius:10px;
   text-align:center;
-  cursor:pointer;
-  transition:0.3s;
-}
-
-.book:hover{
-  transform:scale(1.05);
 }
 
 .book img{
   width:100%;
-  border-radius:8px;
-}
-
-button{
-  padding:8px;
-  margin:5px;
-  border:none;
-  border-radius:5px;
-  background:#4CAF50;
-  color:white;
-}
-
-button:hover{
-  background:#45a049;
 }
 
 #reader{
   display:none;
-  padding:10px;
 }
 
 #content{
-  height:75vh;
-  overflow-y:auto;
+  height:80vh;
+  overflow:auto;
 }
 
+/* MOBILE PDF FIX */
+canvas{
+  width:100% !important;
+  height:auto !important;
+}
+
+/* DARK */
 .dark{
   background:#121212;
   color:white;
@@ -90,79 +80,115 @@ button:hover{
 .dark .book{
   background:#1e1e1e;
 }
+
+/* LOGIN */
+#loginPage{
+  text-align:center;
+  margin-top:50px;
+}
 </style>
 </head>
 
 <body>
 
+<!-- LOGIN -->
+<div id="loginPage">
+  <h2>Login</h2>
+  <input id="username" placeholder="Username"><br>
+  <input id="password" type="password" placeholder="Password"><br>
+  <button onclick="login()">Login</button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;">
+
 <header>
   <h2>📚 My Reading Zone</h2>
-  <p>Your Personal Library</p>
-  <button onclick="toggleDark()">🌙 Dark Mode</button>
+  <button onclick="toggleDark()">🌙</button>
 </header>
 
 <input id="search" placeholder="Search books..." onkeyup="searchBooks()">
 
 <div id="bookList"></div>
 
+<!-- READER -->
 <div id="reader">
   <button onclick="goBack()">⬅ Back</button>
-  <button onclick="saveBookmark()">🔖 Bookmark</button>
-  <h2 id="title"></h2>
+  <button onclick="saveBookmark()">🔖</button>
+  <h3 id="title"></h3>
   <div id="content"></div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel" style="display:none;">
+  <h3>Add Book</h3>
+  <input id="bookTitle" placeholder="Title"><br>
+  <input type="file" id="pdfFile"><br>
+  <input type="file" id="imgFile"><br>
+  <button onclick="addBook()">Add</button>
+</div>
+
 </div>
 
 <script>
 
-// 📚 YOUR BOOKS (GitHub files के हिसाब से)
-let books=[
-  {
-    title:"October Junction",
-    cover:"Octoberjunction.jpg",
-    pdf:"OctoberJunction.pdf"
-  },
-  {
-    title:"Deewar Mein Khidki",
-    cover:"deewarmeekkhidki.jpg",
-    pdf:"deewarmeekkhidki.pdf"
-  },
-  {
-    title:"Godaan",
-    cover:"godaan.jpg",
-    pdf:"godaan.pdf"
+// LOGIN
+function login(){
+  if(username.value==="admin" && password.value==="1234"){
+    localStorage.setItem("login","true");
+    startApp();
+  }else{
+    alert("Wrong login");
   }
+}
+
+function startApp(){
+  loginPage.style.display="none";
+  app.style.display="block";
+  adminPanel.style.display="block";
+}
+
+// AUTO LOGIN
+if(localStorage.getItem("login")==="true"){
+  startApp();
+}
+
+// BOOKS (DEFAULT)
+let books=[
+  {title:"October Junction",cover:"Octoberjunction.jpg",pdf:"OctoberJunction.pdf"},
+  {title:"Godaan",cover:"godaan.jpg",pdf:"godaan.pdf"}
 ];
 
-// 📚 SHOW BOOKS
-function displayBooks(list=books){
-  let container=document.getElementById("bookList");
-  container.innerHTML="";
+// LOAD SAVED
+let saved=localStorage.getItem("books");
+if(saved) books=JSON.parse(saved);
 
+// SHOW BOOKS
+function displayBooks(list=books){
+  bookList.innerHTML="";
   list.forEach((b,i)=>{
-    container.innerHTML+=`
-      <div class="book" onclick="openBook(${i})">
-        <img src="${b.cover}">
-        <p>${b.title}</p>
-      </div>
-    `;
+    bookList.innerHTML+=`
+    <div class="book" onclick="openBook(${i})">
+      <img src="${b.cover}">
+      <p>${b.title}</p>
+    </div>`;
   });
 }
 displayBooks();
 
-// 📖 OPEN PDF BOOK
+// OPEN PDF (MOBILE FIXED)
 function openBook(i){
-  let book=books[i];
-  let content=document.getElementById("content");
-
-  document.getElementById("title").innerText=book.title;
+  let b=books[i];
+  title.innerText=b.title;
   content.innerHTML="Loading...";
 
-  pdfjsLib.getDocument(book.pdf).promise.then(function(pdf){
-    content.innerHTML="";
+  let scale = window.innerWidth < 600 ? 1.5 : 1.2;
 
+  pdfjsLib.getDocument(b.pdf).promise.then(pdf=>{
+    content.innerHTML="";
     for(let p=1;p<=pdf.numPages;p++){
-      pdf.getPage(p).then(function(page){
-        let viewport=page.getViewport({scale:1.2});
+      pdf.getPage(p).then(page=>{
+        let viewport=page.getViewport({scale:scale});
         let canvas=document.createElement("canvas");
         let ctx=canvas.getContext("2d");
 
@@ -171,45 +197,62 @@ function openBook(i){
 
         content.appendChild(canvas);
 
-        page.render({
-          canvasContext:ctx,
-          viewport:viewport
-        });
+        page.render({canvasContext:ctx,viewport:viewport});
       });
     }
   });
 
-  document.getElementById("reader").style.display="block";
-  document.getElementById("bookList").style.display="none";
+  reader.style.display="block";
+  bookList.style.display="none";
 }
 
-// 🔙 BACK
+// BACK
 function goBack(){
-  document.getElementById("reader").style.display="none";
-  document.getElementById("bookList").style.display="flex";
+  reader.style.display="none";
+  bookList.style.display="flex";
 }
 
-// 🔍 SEARCH
+// SEARCH
 function searchBooks(){
-  let val=document.getElementById("search").value.toLowerCase();
-  let filtered=books.filter(b=>b.title.toLowerCase().includes(val));
-  displayBooks(filtered);
+  let v=search.value.toLowerCase();
+  displayBooks(books.filter(b=>b.title.toLowerCase().includes(v)));
 }
 
-// 🌙 DARK MODE
+// DARK
 function toggleDark(){
   document.body.classList.toggle("dark");
 }
 
-// 🔖 BOOKMARK
+// BOOKMARK
 function saveBookmark(){
-  let pos=document.getElementById("content").scrollTop;
-  let title=document.getElementById("title").innerText;
+  localStorage.setItem("scroll",content.scrollTop);
+  alert("Saved");
+}
 
-  let index=books.findIndex(b=>b.title===title);
-  localStorage.setItem("bookmark_"+index,pos);
+// ADD BOOK (USER UPLOAD)
+function addBook(){
+  let t=bookTitle.value;
+  let pdf=pdfFile.files[0];
+  let img=imgFile.files[0];
 
-  alert("Bookmark saved!");
+  let reader1=new FileReader();
+  let reader2=new FileReader();
+
+  reader1.onload=function(){
+    reader2.onload=function(){
+      books.push({
+        title:t,
+        pdf:reader1.result,
+        cover:reader2.result
+      });
+
+      localStorage.setItem("books",JSON.stringify(books));
+      displayBooks();
+      alert("Book Added!");
+    };
+    reader2.readAsDataURL(img);
+  };
+  reader1.readAsDataURL(pdf);
 }
 
 </script>
