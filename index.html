@@ -5,87 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Reading Zone</title>
 
-<!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
 <style>
-body{
-  margin:0;
-  font-family: Arial;
-  background:#f5f5f5;
-}
+body{margin:0;font-family:Arial;background:#f5f5f5;}
+header{background:#4CAF50;color:white;padding:10px;text-align:center;}
 
-header{
-  background:#4CAF50;
-  color:white;
-  padding:10px;
-  text-align:center;
-}
+input,textarea{padding:8px;margin:5px;width:90%;}
+button{padding:8px;margin:5px;border:none;background:#4CAF50;color:white;border-radius:5px;}
 
-input,textarea{
-  padding:8px;
-  margin:5px;
-  width:90%;
-}
+#bookList{display:flex;flex-wrap:wrap;justify-content:center;}
+.book{width:140px;margin:10px;padding:10px;background:white;border-radius:10px;text-align:center;}
+.book img{width:100%;}
 
-button{
-  padding:8px;
-  margin:5px;
-  border:none;
-  background:#4CAF50;
-  color:white;
-  border-radius:5px;
-}
+#reader{display:none;}
+#content{height:80vh;overflow:auto;}
 
-#bookList{
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-}
+canvas{width:100%!important;height:auto!important;}
 
-.book{
-  width:140px;
-  margin:10px;
-  padding:10px;
-  background:white;
-  border-radius:10px;
-  text-align:center;
-}
+.dark{background:#121212;color:white;}
+.dark .book{background:#1e1e1e;}
 
-.book img{
-  width:100%;
-}
-
-#reader{
-  display:none;
-}
-
-#content{
-  height:80vh;
-  overflow:auto;
-}
-
-/* MOBILE PDF FIX */
-canvas{
-  width:100% !important;
-  height:auto !important;
-}
-
-/* DARK */
-.dark{
-  background:#121212;
-  color:white;
-}
-
-.dark .book{
-  background:#1e1e1e;
-}
-
-/* LOGIN */
-#loginPage{
-  text-align:center;
-  margin-top:50px;
-}
+#loginPage{text-align:center;margin-top:50px;}
 </style>
 </head>
 
@@ -93,39 +34,38 @@ canvas{
 
 <!-- LOGIN -->
 <div id="loginPage">
-  <h2>Login</h2>
-  <input id="username" placeholder="Username"><br>
-  <input id="password" type="password" placeholder="Password"><br>
-  <button onclick="login()">Login</button>
+<h2>Login</h2>
+<input id="username" placeholder="Username"><br>
+<input id="password" type="password" placeholder="Password"><br>
+<button onclick="login()">Login</button>
 </div>
 
 <!-- APP -->
 <div id="app" style="display:none;">
 
 <header>
-  <h2>📚 My Reading Zone</h2>
-  <button onclick="toggleDark()">🌙</button>
+<h2>📚 My Reading Zone</h2>
+<button onclick="toggleDark()">🌙</button>
 </header>
 
-<input id="search" placeholder="Search books..." onkeyup="searchBooks()">
+<input id="search" placeholder="Search..." onkeyup="searchBooks()">
 
 <div id="bookList"></div>
 
 <!-- READER -->
 <div id="reader">
-  <button onclick="goBack()">⬅ Back</button>
-  <button onclick="saveBookmark()">🔖</button>
-  <h3 id="title"></h3>
-  <div id="content"></div>
+<button onclick="goBack()">⬅ Back</button>
+<h3 id="title"></h3>
+<div id="content"></div>
 </div>
 
 <!-- ADMIN PANEL -->
 <div id="adminPanel" style="display:none;">
-  <h3>Add Book</h3>
-  <input id="bookTitle" placeholder="Title"><br>
-  <input type="file" id="pdfFile"><br>
-  <input type="file" id="imgFile"><br>
-  <button onclick="addBook()">Add</button>
+<h3>Add Book</h3>
+<input id="bookTitle" placeholder="Title"><br>
+<input type="file" id="pdfFile"><br>
+<input type="file" id="imgFile"><br>
+<button onclick="addBook()">Add</button>
 </div>
 
 </div>
@@ -134,125 +74,137 @@ canvas{
 
 // LOGIN
 function login(){
-  if(username.value==="admin" && password.value==="1234"){
-    localStorage.setItem("login","true");
-    startApp();
-  }else{
-    alert("Wrong login");
-  }
+if(username.value==="admin" && password.value==="1234"){
+localStorage.setItem("login","true");
+startApp();
+}else alert("Wrong login");
 }
 
 function startApp(){
-  loginPage.style.display="none";
-  app.style.display="block";
-  adminPanel.style.display="block";
+loginPage.style.display="none";
+app.style.display="block";
+adminPanel.style.display="block";
 }
 
 // AUTO LOGIN
-if(localStorage.getItem("login")==="true"){
-  startApp();
-}
+if(localStorage.getItem("login")==="true"){startApp();}
 
-// BOOKS (DEFAULT)
+// 🔥 DEFAULT BOOKS (GitHub वाली)
 let books=[
-  {title:"October Junction",cover:"Octoberjunction.jpg",pdf:"OctoberJunction.pdf"},
-  {title:"Godaan",cover:"godaan.jpg",pdf:"godaan.pdf"}
+{
+title:"October Junction",
+cover:"Octoberjunction.jpg",
+pdf:"OctoberJunction.pdf"
+},
+{
+title:"Deewar Mein Khidki",
+cover:"deewarmeekkhidki.jpg",
+pdf:"deewarmeekkhidki.pdf"
+},
+{
+title:"Godaan",
+cover:"godaan.jpg",
+pdf:"godaan.pdf"
+}
 ];
 
-// LOAD SAVED
+// LOAD USER BOOKS
 let saved=localStorage.getItem("books");
-if(saved) books=JSON.parse(saved);
+if(saved){
+let userBooks=JSON.parse(saved);
+books=[...books,...userBooks];
+}
 
 // SHOW BOOKS
 function displayBooks(list=books){
-  bookList.innerHTML="";
-  list.forEach((b,i)=>{
-    bookList.innerHTML+=`
-    <div class="book" onclick="openBook(${i})">
-      <img src="${b.cover}">
-      <p>${b.title}</p>
-    </div>`;
-  });
+bookList.innerHTML="";
+list.forEach((b,i)=>{
+bookList.innerHTML+=`
+<div class="book" onclick="openBook(${i})">
+<img src="${b.cover}">
+<p>${b.title}</p>
+</div>`;
+});
 }
 displayBooks();
 
-// OPEN PDF (MOBILE FIXED)
+// OPEN PDF
 function openBook(i){
-  let b=books[i];
-  title.innerText=b.title;
-  content.innerHTML="Loading...";
+let b=books[i];
+title.innerText=b.title;
+content.innerHTML="Loading...";
 
-  let scale = window.innerWidth < 600 ? 1.5 : 1.2;
+let scale = window.innerWidth<600?1.5:1.2;
 
-  pdfjsLib.getDocument(b.pdf).promise.then(pdf=>{
-    content.innerHTML="";
-    for(let p=1;p<=pdf.numPages;p++){
-      pdf.getPage(p).then(page=>{
-        let viewport=page.getViewport({scale:scale});
-        let canvas=document.createElement("canvas");
-        let ctx=canvas.getContext("2d");
+pdfjsLib.getDocument(b.pdf).promise.then(pdf=>{
+content.innerHTML="";
+for(let p=1;p<=pdf.numPages;p++){
+pdf.getPage(p).then(page=>{
+let viewport=page.getViewport({scale:scale});
+let canvas=document.createElement("canvas");
+let ctx=canvas.getContext("2d");
 
-        canvas.height=viewport.height;
-        canvas.width=viewport.width;
+canvas.height=viewport.height;
+canvas.width=viewport.width;
 
-        content.appendChild(canvas);
+content.appendChild(canvas);
 
-        page.render({canvasContext:ctx,viewport:viewport});
-      });
-    }
-  });
+page.render({canvasContext:ctx,viewport:viewport});
+});
+}
+});
 
-  reader.style.display="block";
-  bookList.style.display="none";
+reader.style.display="block";
+bookList.style.display="none";
 }
 
 // BACK
 function goBack(){
-  reader.style.display="none";
-  bookList.style.display="flex";
+reader.style.display="none";
+bookList.style.display="flex";
 }
 
 // SEARCH
 function searchBooks(){
-  let v=search.value.toLowerCase();
-  displayBooks(books.filter(b=>b.title.toLowerCase().includes(v)));
+let v=search.value.toLowerCase();
+displayBooks(books.filter(b=>b.title.toLowerCase().includes(v)));
 }
 
 // DARK
 function toggleDark(){
-  document.body.classList.toggle("dark");
-}
-
-// BOOKMARK
-function saveBookmark(){
-  localStorage.setItem("scroll",content.scrollTop);
-  alert("Saved");
+document.body.classList.toggle("dark");
 }
 
 // ADD BOOK (USER UPLOAD)
 function addBook(){
-  let t=bookTitle.value;
-  let pdf=pdfFile.files[0];
-  let img=imgFile.files[0];
+let t=bookTitle.value;
+let pdf=pdfFile.files[0];
+let img=imgFile.files[0];
 
-  let reader1=new FileReader();
-  let reader2=new FileReader();
+let r1=new FileReader();
+let r2=new FileReader();
 
-  reader1.onload=function(){
-    reader2.onload=function(){
-      books.push({
-        title:t,
-        pdf:reader1.result,
-        cover:reader2.result
-      });
+r1.onload=function(){
+r2.onload=function(){
 
-      localStorage.setItem("books",JSON.stringify(books));
-      displayBooks();
-      alert("Book Added!");
-    };
-    reader2.readAsDataURL(img);
-  };
-  reader1.readAsDataURL(pdf);
+let newBook={
+title:t,
+pdf:r1.result,
+cover:r2.result
+};
+
+let old=JSON.parse(localStorage.getItem("books")||"[]");
+old.push(newBook);
+localStorage.setItem("books",JSON.stringify(old));
+
+books.push(newBook);
+displayBooks();
+
+alert("Book Added!");
+};
+r2.readAsDataURL(img);
+};
+r1.readAsDataURL(pdf);
 }
 
 </script>
